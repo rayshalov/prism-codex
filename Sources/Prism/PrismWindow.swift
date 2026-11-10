@@ -4,7 +4,7 @@ struct PrismWindow: View {
     @ObservedObject private var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var displayedTheme: Theme
-    @State private var covered = false
+    @State private var transitioning = false
 
     private struct ThemeRequest: Equatable {
         let theme: Theme
@@ -18,16 +18,16 @@ struct PrismWindow: View {
 
     var body: some View {
         let request = ThemeRequest(theme: model.theme, reduceMotion: reduceMotion)
-        Dashboard(model: model)
-            .overlay {
-                Palette.graphite
-                    .ignoresSafeArea()
-                    .opacity(covered ? 1 : 0)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-            .preferredColorScheme(displayedTheme.scheme)
-            .task(id: request) { await apply(request) }
+        let inMotion = transitioning && !reduceMotion
+        ZStack {
+            Palette.graphite.ignoresSafeArea().accessibilityHidden(true)
+            Dashboard(model: model)
+                .blur(radius: inMotion ? 14 : 0)
+                .offset(y: inMotion ? 10 : 0)
+                .opacity(inMotion ? 0.28 : 1)
+        }
+        .preferredColorScheme(displayedTheme.scheme)
+        .task(id: request) { await apply(request) }
     }
 
     @MainActor
@@ -38,21 +38,21 @@ struct PrismWindow: View {
             transaction.disablesAnimations = true
             withTransaction(transaction) {
                 displayedTheme = request.theme
-                covered = false
+                transitioning = false
             }
             return
         }
 
         do {
             if displayedTheme != request.theme {
-                withAnimation(.easeIn(duration: 0.12)) { covered = true }
-                try await Task.sleep(for: .milliseconds(145))
+                withAnimation(.easeInOut(duration: 0.18)) { transitioning = true }
+                try await Task.sleep(for: .milliseconds(195))
                 try Task.checkCancellation()
                 displayedTheme = request.theme
                 try await Task.sleep(for: .milliseconds(34))
             }
             try Task.checkCancellation()
-            withAnimation(.easeOut(duration: 0.24)) { covered = false }
+            withAnimation(.easeOut(duration: 0.32)) { transitioning = false }
         } catch {
             // A newer request owns the transition.
         }
