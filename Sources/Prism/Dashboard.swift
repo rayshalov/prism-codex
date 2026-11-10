@@ -13,6 +13,7 @@ struct Dashboard: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page = Page.accounts
+    @State private var revealed = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -25,6 +26,20 @@ struct Dashboard: View {
                     else { appearancePage }
                 }
                 .transition(.opacity.combined(with: .offset(x: 9)))
+            }
+            .blur(radius: reduceMotion || revealed ? 0 : 14)
+            .opacity(reduceMotion || revealed ? 1 : 0.25)
+            .offset(y: reduceMotion || revealed ? 0 : 5)
+            .task {
+                guard !revealed else { return }
+                if reduceMotion {
+                    revealed = true
+                    return
+                }
+                do {
+                    try await Task.sleep(for: .milliseconds(70))
+                    withAnimation(.easeOut(duration: 0.56)) { revealed = true }
+                } catch {}
             }
             if let operation = model.operation {
                 statusBanner(operation)
