@@ -20,7 +20,7 @@ struct Dashboard: View {
             Aurora()
             HStack(spacing: 0) {
                 sidebar
-                Divider().overlay(.white.opacity(0.22))
+                Divider().overlay(.white.opacity(scheme == .dark ? 0.09 : 0.22))
                 Group {
                     if page == .accounts { accountsPage }
                     else { appearancePage }
@@ -66,7 +66,9 @@ struct Dashboard: View {
             HStack(spacing: 11) {
                 PrismMark(size: 42)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Prism").font(.system(size: 25, weight: .semibold, design: .rounded)).tracking(-0.7)
+                    Text("Prism")
+                        .font(.system(size: 25, weight: scheme == .dark ? .bold : .semibold,
+                                      design: scheme == .dark ? .default : .rounded)).tracking(-0.7)
                     Text("ПРОФИЛИ CODEX").font(.system(size: 9, weight: .bold, design: .monospaced))
                         .tracking(1.7).foregroundStyle(.secondary)
                 }
@@ -82,12 +84,23 @@ struct Dashboard: View {
                                 .foregroundStyle(page == item ? Palette.accent(scheme) : .secondary)
                             Text(item.name).font(.system(size: 13, weight: page == item ? .semibold : .medium))
                             Spacer()
-                            if page == item { Circle().fill(Palette.accent(scheme)).frame(width: 5, height: 5) }
+                            if page == item && scheme == .light {
+                                Circle().fill(Palette.accent(scheme)).frame(width: 5, height: 5)
+                            }
                         }
                         .padding(.horizontal, 12)
                         .frame(height: 39)
                         .background {
-                            if page == item { GlassSurface(radius: 13, intensity: 0.25) }
+                            if page == item {
+                                if scheme == .dark {
+                                    Rectangle().fill(.white.opacity(0.055))
+                                        .overlay(alignment: .leading) {
+                                            Rectangle().fill(Palette.brass).frame(width: 2).padding(.vertical, 9)
+                                        }
+                                } else {
+                                    GlassSurface(radius: 13, intensity: 0.25)
+                                }
+                            }
                         }
                         .contentShape(Rectangle())
                     }
@@ -112,7 +125,13 @@ struct Dashboard: View {
         .padding(.top, 45)
         .padding(.bottom, 21)
         .frame(width: 208)
-        .background { Rectangle().fill(.ultraThinMaterial).opacity(0.67) }
+        .background {
+            if scheme == .dark {
+                LinearGradient(colors: [Palette.graphite, Palette.ink], startPoint: .top, endPoint: .bottom)
+            } else {
+                Rectangle().fill(.ultraThinMaterial).opacity(0.67)
+            }
+        }
     }
 
     private var accountsPage: some View {
@@ -148,7 +167,11 @@ struct Dashboard: View {
                 Spacer()
                 Text(String(model.profiles.count)).font(.system(size: 11, weight: .semibold, design: .monospaced))
                     .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(.thinMaterial, in: Capsule()).foregroundStyle(.secondary)
+                    .background {
+                        if scheme == .dark { Capsule().fill(.white.opacity(0.07)) }
+                        else { Capsule().fill(.thinMaterial) }
+                    }
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 2)
             if model.profiles.isEmpty { emptyCard }
@@ -182,13 +205,16 @@ struct Dashboard: View {
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
                 HStack(spacing: 6) {
-                    Circle().fill(identity != nil ? Color.teal : .secondary).frame(width: 6, height: 6)
-                        .shadow(color: .teal.opacity(0.62), radius: 5)
+                    Circle().fill(identity != nil ? (scheme == .dark ? Palette.brass : .teal) : .secondary)
+                        .frame(width: 6, height: 6)
+                        .shadow(color: .teal.opacity(scheme == .dark ? 0 : 0.62), radius: 5)
                     Text("ТЕКУЩИЙ ВХОД").font(.system(size: 10, weight: .bold, design: .monospaced)).tracking(1.3)
                         .foregroundStyle(Palette.accent(scheme))
                 }
-                .padding(.vertical, 6).padding(.horizontal, 9)
-                .background(.ultraThinMaterial, in: Capsule())
+                .padding(.vertical, 6).padding(.horizontal, scheme == .dark ? 0 : 9)
+                .background {
+                    if scheme == .light { Capsule().fill(.ultraThinMaterial) }
+                }
                 Spacer()
                 if let plan = identity?.plan { PlanBadge(plan: plan) }
             }
@@ -262,10 +288,14 @@ struct Dashboard: View {
     }
 
     private func heading(_ section: String, _ title: String, _ detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: scheme == .dark ? 8 : 6) {
             Text(section).font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.8)
                 .foregroundStyle(Palette.accent(scheme))
-            Text(title).font(.system(size: 29, weight: .semibold, design: .rounded)).tracking(-0.8)
+            if scheme == .dark { Rectangle().fill(Palette.mutedBrass).frame(width: 37, height: 1) }
+            Text(title)
+                .font(.system(size: scheme == .dark ? 40 : 29, weight: scheme == .dark ? .bold : .semibold,
+                              design: scheme == .dark ? .default : .rounded))
+                .tracking(scheme == .dark ? -1.7 : -0.8)
             Text(detail).foregroundStyle(.secondary).font(.system(size: 12))
         }
     }
@@ -285,7 +315,7 @@ struct Dashboard: View {
     private func noticeBanner(_ notice: Notice) -> some View {
         HStack(spacing: 9) {
             Image(systemName: notice.error ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(notice.error ? .orange : .teal)
+                .foregroundStyle(notice.error ? .orange : (scheme == .dark ? Palette.brass : .teal))
             Text(notice.text).font(.system(size: 12, weight: .medium))
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -337,7 +367,7 @@ private struct AccountRow: View {
     @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Avatar(identity: profile.identity, size: 35)
             VStack(alignment: .leading, spacing: 3) {
                 Text(profile.identity.displayName).font(.system(size: 13, weight: .semibold)).lineLimit(1)
@@ -352,12 +382,14 @@ private struct AccountRow: View {
             if active {
                 Label("Активен", systemImage: "checkmark.circle.fill")
                     .font(.system(size: 11, weight: .semibold)).foregroundStyle(Palette.accent(scheme))
+                    .fixedSize(horizontal: true, vertical: false)
                     .padding(.horizontal, 10).frame(height: 29)
             } else {
                 Button(action: select) {
                     Label("Выбрать", systemImage: "arrow.right")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Palette.accent(scheme))
+                        .fixedSize(horizontal: true, vertical: false)
                         .padding(.horizontal, 9).frame(height: 27)
                 }
                 .buttonStyle(GlassButton()).disabled(disabled)
@@ -426,7 +458,7 @@ private struct LimitMeter: View {
 
     private var meterColor: Color {
         if let value = window?.remainingPercent, value <= 15 { return .orange }
-        if weekly { return scheme == .dark ? Color(red: 0.68, green: 0.66, blue: 1) : .indigo }
+        if weekly { return scheme == .dark ? Color(white: 0.74) : .indigo }
         return Palette.accent(scheme)
     }
 
@@ -448,7 +480,7 @@ private struct LimitMeter: View {
         }
         .padding(.horizontal, expanded ? 10 : 6)
         .padding(.vertical, expanded ? 8 : 6)
-        .frame(minWidth: expanded ? nil : 86, maxWidth: expanded ? .infinity : 86)
+        .frame(minWidth: expanded ? nil : 78, maxWidth: expanded ? .infinity : 78)
         .background { GlassSurface(radius: expanded ? 11 : 8, intensity: 0.12) }
         .help(reset.map { "\(title): осталось \(percent). Сброс \($0)." } ?? "\(title): \(window == nil ? "нет данных" : "осталось \(percent)")")
         .accessibilityElement(children: .ignore)
@@ -472,17 +504,25 @@ private struct LimitBar: ProgressViewStyle {
 
 private struct PlanBadge: View {
     let plan: String
+    @Environment(\.colorScheme) private var scheme
+
     var body: some View {
         Text(plan.uppercased()).font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(0.6)
             .foregroundStyle(.secondary).padding(.horizontal, 7).padding(.vertical, 4)
-            .background(.ultraThinMaterial, in: Capsule())
+            .background {
+                if scheme == .dark { Capsule().strokeBorder(.white.opacity(0.17), lineWidth: 1) }
+                else { Capsule().fill(.ultraThinMaterial) }
+            }
     }
 }
 
 private struct Avatar: View {
     let identity: AccountIdentity?
     let size: CGFloat
+    @Environment(\.colorScheme) private var scheme
+
     private var tint: Color {
+        if scheme == .dark { return Palette.ink }
         let colors: [Color] = [Color(red: 0.16, green: 0.64, blue: 0.74), .indigo, .teal, .purple]
         let index = Int(identity?.id.utf8.first ?? 0) % colors.count
         return colors[index]
@@ -490,7 +530,8 @@ private struct Avatar: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.29, style: .continuous)
-                .fill(LinearGradient(colors: [tint.opacity(0.82), tint], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .fill(LinearGradient(colors: [scheme == .dark ? Palette.graphite : tint.opacity(0.82), tint],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
             if let identity = identity {
                 Text(identity.displayName.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased())
                     .font(.system(size: size * 0.31, weight: .semibold, design: .rounded))
@@ -498,9 +539,12 @@ private struct Avatar: View {
                 Image(systemName: "person.crop.circle").font(.system(size: size * 0.44, weight: .light))
             }
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(scheme == .dark ? Palette.brass : .white)
         .frame(width: size, height: size)
-        .overlay { RoundedRectangle(cornerRadius: size * 0.29).strokeBorder(.white.opacity(0.47), lineWidth: 1) }
+        .overlay {
+            RoundedRectangle(cornerRadius: size * 0.29)
+                .strokeBorder(.white.opacity(scheme == .dark ? 0.15 : 0.47), lineWidth: 1)
+        }
         .accessibilityHidden(true)
     }
 }
@@ -514,13 +558,13 @@ private struct ThemeTile: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 12) {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(LinearGradient(colors: theme == .dark ? [.indigo.opacity(0.8), .black]
-                                         : theme == .light ? [.white, .cyan.opacity(0.23)] : [.white.opacity(0.85), .indigo.opacity(0.7)],
+                    .fill(LinearGradient(colors: theme == .dark ? [Palette.graphite, Palette.ink]
+                                         : theme == .light ? [.white, .cyan.opacity(0.23)] : [.white.opacity(0.85), Palette.graphite],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(height: 70)
                     .overlay {
                         Image(systemName: theme.icon).font(.system(size: 24, weight: .light))
-                            .foregroundStyle(theme == .light ? Color.indigo : .white)
+                            .foregroundStyle(theme == .dark ? Palette.brass : theme == .light ? .indigo : .white)
                     }
                 HStack(spacing: 5) {
                     Text(theme.title).font(.system(size: 12, weight: .semibold))
