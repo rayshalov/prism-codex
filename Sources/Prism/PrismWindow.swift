@@ -1,33 +1,39 @@
+import AppKit
 import SwiftUI
 
 struct PrismWindow: View {
     @ObservedObject private var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var displayedTheme: Theme
+    @State private var systemScheme: ColorScheme
+    @State private var displayedScheme: ColorScheme
     @State private var transitioning = false
 
     private struct ThemeRequest: Equatable {
-        let theme: Theme
+        let scheme: ColorScheme
         let reduceMotion: Bool
     }
 
+    @MainActor
     init(model: AppModel) {
         self.model = model
-        _displayedTheme = State(initialValue: model.theme)
+        let systemScheme = Self.scheme(for: NSApplication.shared.effectiveAppearance)
+        _systemScheme = State(initialValue: systemScheme)
+        _displayedScheme = State(initialValue: model.theme.scheme ?? systemScheme)
     }
 
     var body: some View {
-        let request = ThemeRequest(theme: model.theme, reduceMotion: reduceMotion)
-        let inMotion = transitioning && !reduceMotion
-        ZStack {
-            Palette.graphite.ignoresSafeArea().accessibilityHidden(true)
-            Dashboard(model: model)
-                .blur(radius: inMotion ? 14 : 0)
-                .offset(y: inMotion ? 10 : 0)
-                .opacity(inMotion ? 0.28 : 1)
-        }
-        .preferredColorScheme(displayedTheme.scheme)
-        .task(id: request) { await apply(request) }
+        let request = ThemeRequest(scheme: model.theme.scheme ?? systemScheme, reduceMotion: reduceMotion)
+        Dashboard(model: model, themeInMotion: transitioning && !reduceMotion)
+            .preferredColorScheme(displayedScheme)
+            .onReceive(NSApplication.shared.publisher(for: \.effectiveAppearance)
+                .map(Self.scheme(for:)).removeDuplicates()) { scheme in
+                if systemScheme != scheme { systemScheme = scheme }
+            }
+            .task(id: request) { await apply(request) }
+    }
+
+    private static func scheme(for appearance: NSAppearance) -> ColorScheme {
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark : .light
     }
 
     @MainActor
@@ -37,18 +43,18 @@ struct PrismWindow: View {
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) {
-                displayedTheme = request.theme
+                displayedScheme = request.scheme
                 transitioning = false
             }
             return
         }
 
         do {
-            if displayedTheme != request.theme {
+            if displayedScheme != request.scheme {
                 withAnimation(.easeInOut(duration: 0.18)) { transitioning = true }
                 try await Task.sleep(for: .milliseconds(195))
                 try Task.checkCancellation()
-                displayedTheme = request.theme
+                displayedScheme = request.scheme
                 try await Task.sleep(for: .milliseconds(34))
             }
             try Task.checkCancellation()

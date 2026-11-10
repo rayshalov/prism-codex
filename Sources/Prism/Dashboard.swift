@@ -10,17 +10,17 @@ private enum Page: String, CaseIterable {
 
 struct Dashboard: View {
     @ObservedObject var model: AppModel
+    let themeInMotion: Bool
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page = Page.accounts
     @State private var revealed = false
+    private let sidebarWidth: CGFloat = 208
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Aurora()
             HStack(spacing: 0) {
                 sidebar
-                Divider().overlay(.white.opacity(scheme == .dark ? 0.09 : 0.22))
                 Group {
                     if page == .accounts { accountsPage }
                     else { appearancePage }
@@ -51,6 +51,11 @@ struct Dashboard: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .blur(radius: themeInMotion ? 14 : 0)
+        .offset(y: themeInMotion ? 10 : 0)
+        .opacity(themeInMotion ? 0.48 : 1)
+        .background(alignment: .leading) { sidebarBackdrop }
+        .background { Aurora() }
         .animation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.84), value: page)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: model.operation != nil)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: model.notice?.id)
@@ -124,14 +129,20 @@ struct Dashboard: View {
         .padding(.horizontal, 17)
         .padding(.top, 45)
         .padding(.bottom, 21)
-        .frame(width: 208)
-        .background {
-            if scheme == .dark {
-                LinearGradient(colors: [Palette.graphite, Palette.ink], startPoint: .top, endPoint: .bottom)
-            } else {
-                Rectangle().fill(.ultraThinMaterial).opacity(0.67)
-            }
+        .frame(width: sidebarWidth)
+    }
+
+    private var sidebarBackdrop: some View {
+        ZStack(alignment: .trailing) {
+            Color(red: 0.90, green: 0.91, blue: 0.94).opacity(0.68)
+            LinearGradient(colors: [Palette.graphite, Palette.ink], startPoint: .top, endPoint: .bottom)
+                .opacity(scheme == .dark ? 1 : 0)
+            Rectangle().fill(.white.opacity(scheme == .dark ? 0.09 : 0.22)).frame(width: 1)
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: scheme)
+        .frame(width: sidebarWidth)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var accountsPage: some View {

@@ -97,22 +97,21 @@ struct Aurora: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        Group {
-            if scheme == .dark {
-                LinearGradient(stops: [.init(color: Palette.graphite, location: 0),
-                                       .init(color: Color(white: 0.105), location: 0.49),
-                                       .init(color: Palette.ink, location: 1)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-            } else {
-                lightAurora
-            }
+        ZStack {
+            lightAurora
+            LinearGradient(stops: [.init(color: Palette.graphite, location: 0),
+                                   .init(color: Color(white: 0.105), location: 0.49),
+                                   .init(color: Palette.ink, location: 1)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+                .opacity(scheme == .dark ? 1 : 0)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: scheme)
         }
         .ignoresSafeArea()
         .accessibilityHidden(true)
     }
 
     private var lightAurora: some View {
-        TimelineView(.animation(minimumInterval: 0.05, paused: reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 0.05, paused: reduceMotion || scheme == .dark)) { context in
             let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate * 0.16
             ZStack {
                 Color(red: 0.924, green: 0.945, blue: 0.975)
