@@ -7,9 +7,8 @@ struct PrismApp: App {
 
     var body: some Scene {
         WindowGroup("Prism") {
-            Dashboard(model: model)
+            PrismWindow(model: model)
                 .frame(minWidth: 790, minHeight: 555)
-                .preferredColorScheme(model.theme.scheme)
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 915, height: 625)
